@@ -21,7 +21,12 @@ class EmailMarketingManager:
         self.domain = domain
 
     def emailMarketing(self):
-        proc = httpProc(self.request, 'emailMarketing/emailMarketing.html', None, 'admin')
+        context = {
+            'plugin_name': 'Email Marketing',
+            'version': '1.0.0',
+            'status': 'Active'
+        }
+        proc = httpProc(self.request, 'emailMarketing/emailMarketing.html', context, 'admin')
         return proc.render()
 
     def fetchUsers(self):

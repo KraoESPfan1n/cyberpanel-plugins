@@ -1,165 +1,90 @@
-<div align="center">
+# CyberPanel Plugins
 
-<img src="https://community.cyberpanel.net/uploads/default/original/1X/416fdec0e96357d11f7b2756166c61b1aeca5939.png" alt="CyberPanel Logo" width="480"/>
+A collection of plugins for CyberPanel web hosting control panel.
 
-# CyberPanel
+**Version:** 1.2.0  
+**Author:** master3395  
+**Compatible with:** CyberPanel 2.5.5-dev and higher
 
-**Web Hosting Control Panel powered by OpenLiteSpeed**
-Fast • Secure • Scalable — Simplify hosting management with style.
+## Quick Links
 
-**Version**: 2.5.5-dev • **Updated**: November 15, 2025
+- 📚 [Plugin Documentation](docs/plugins/)
+- 📖 [Installation Guide](docs/guides/installation.md)
+- 🛠️ [Development Guide](docs/guides/development.md)
+- 💰 [Pricing Information](docs/guides/pricing.md)
 
-[![GitHub](https://img.shields.io/badge/GitHub-Repo-000?style=flat-square\&logo=github)](https://github.com/usmannasir/cyberpanel)
-[![Docs](https://img.shields.io/badge/Docs-Read-green?style=flat-square\&logo=gitbook)](https://cyberpanel.net/KnowledgeBase/)
-[![Forum](https://img.shields.io/badge/Forum-Join-FF6F00?style=flat-square\&logo=discourse\&logoColor=white)](https://community.cyberpanel.net)
-[![Discord](https://img.shields.io/badge/Discord-Chat-5865F2?style=flat-square\&logo=discord\&logoColor=white)](https://discord.gg/g8k8Db3)
-[![YouTube](https://img.shields.io/badge/YouTube-Learn-FF0000?style=flat-square\&logo=youtube)](https://www.youtube.com/@Cyber-Panel)
+## Available Plugins
 
----
+| Plugin | Type | Pricing | Author | Description |
+|--------|------|---------|--------|-------------|
+| [Auto Snapshot for Contabo](contaboAutoSnapshot/) | Backup | 🟡 Paid | master3395 | Automated Contabo VPS snapshots |
+| [CSP Manager](cspManager/) | Security | 🟢 Free | master3395 | Content Security Policy management |
+| [Discord Authentication](discordAuth/) | Security | 🟢 Free | master3395 | Discord OAuth2 login for CyberPanel |
+| [Discord Webhooks](docs/plugins/discordWebhooks.md) | Integration | 🟢 Free | master3395 | Send server notifications to Discord |
+| [Email Marketing](emailMarketing/) | Email | 🟢 Free | usmannasir | Email marketing plugin for CyberPanel |
+| [Example Plugin](examplePlugin/) | Utility | 🟢 Free | usmannasir | Example plugin demonstrating CyberPanel plugin structure |
+| [Fail2ban Security Manager](docs/plugins/fail2ban.md) | Security | 🟢 Free | master3395 | Manage and monitor fail2ban settings |
+| [Google Tag Manager](googleTagManager/) | Analytics | 🟢 Free | master3395 | Configure GTM container IDs per domain |
+| [PayPal Premium Plugin Example](paypalPremiumPlugin/) | Utility | 🟡 Paid | master3395 | Example paid plugin with PayPal payment integration |
+| [Memcache Manager](memcacheManager/) | Utility | 🟢 Free | master3395 | Manage Memcached/LSMCD: status, stats, flush, config |
+| [PM2 Manager](docs/plugins/pm2Manager.md) | Development | 🟢 Free | master3395 | Manage PM2 Node.js process manager |
+| [Premium Plugin Example](docs/plugins/premiumPlugin.md) | Utility | 🟡 Paid | master3395 | Example paid plugin with Patreon integration |
+| [Redis Manager](redisManager/) | Utility | 🟢 Free | master3395 | Manage Redis: status, config, flush, load defaults, fix permissions |
+| [Test Plugin](docs/plugins/testPlugin.md) | Utility | 🟢 Free | usmannasir | Basic test plugin for CyberPanel plugin system |
 
-</div>
+## Plugin Pricing
 
-## Key highlights
+Plugins can be either **Free** or **Paid**:
 
-* ⚡ **Performance first** — OpenLiteSpeed + HTTP/3 + LSCache
-* 🔒 **Security by default** — Auto SSL, FirewallD integration, 2FA, brute-force protection
-* 📧 **Integrated mail** — Postfix, Dovecot, SnappyMail
-* 🗂 **Backups & restore** — One-click snapshots and rollbacks
-* 👨‍💻 **Developer friendly** — Git manager, REST API, staging, PHP version switcher
+- **Free Plugins**: Available to all users, no subscription required
+- **Paid Plugins**: Require a Patreon subscription to a specific tier
 
----
+See the [Pricing Guide](docs/guides/pricing.md) for more information.
 
-## Features
+## Installation
 
-**Security**
+Quick installation steps:
 
-* Auto SSL (Let's Encrypt)
-* Firewall integrations (FirewallD, optional CSF export)
-* 2FA (TOTP + WebAuthn/Passkey)
-* AI-powered security scanner (optional)
+1. Download the plugin ZIP file
+2. Upload via CyberPanel Plugin Manager
+3. Install and activate
 
-**Hosting & Websites**
+For detailed instructions, see the [Installation Guide](docs/guides/installation.md).
 
-* OpenLiteSpeed (HTTP/3, QUIC)
-* One-click WordPress (LSCache-ready)
-* PHP per-site version selector
-* File manager, FTP, SFTP
+## Development
 
-**Email & DNS**
+Want to create your own plugin? Check out the [Development Guide](docs/guides/development.md) for:
 
-* Postfix + Dovecot
-* SnappyMail webmail
-* DNS (PowerDNS) with easy zone management
+- Plugin structure
+- meta.xml format
+- Free and paid plugin examples
+- Best practices
 
-**Developer & Automation**
+## Contributing
 
-* RESTful API (create/list/manage sites, users, packages)
-* Git integration & staging
-* Docker command execution support
+Contributions are welcome! Please ensure:
 
-**Backups & Storage**
+- Code follows CyberPanel standards
+- Plugins are tested before submission
+- Documentation is updated
+- meta.xml is properly formatted
 
-* Local snapshots, remote backups (S3/AWS compatible)
-* One-click restore and scheduled backups
+## Support
 
----
+For issues and questions:
 
----
+- Open an issue on [GitHub](https://github.com/master3395/cyberpanel-plugins/issues)
+- Check plugin-specific documentation in [docs/plugins/](docs/plugins/)
+- Review CyberPanel documentation
 
-## Supported platforms (condensed)
+## License
 
-| OS family                  | Recommended / Supported |
-| -------------------------- | ----------------------: |
-| Ubuntu 24.04, 22.04, 20.04 |          ✅ Recommended |
-| Debian 13, 12, 11          |            ✅ Supported |
-| AlmaLinux 10, 9, 8         |            ✅ Supported |
-| RockyLinux 9, 8            |            ✅ Supported |
-| RHEL 9, 8                  |            ✅ Supported |
-| CloudLinux 9, 8            |            ✅ Supported |
-| CentOS 7                   |      ⚠️ Legacy — EOL |
+These plugins are provided as-is for use with CyberPanel.
 
-> CyberPanel targets x86\_64 only. Test the unsupported OS in staging first.
-
----
-
-## PHP support (short)
-
-* ✅ **Recommended**: PHP 8.5 (beta), 8.4, 8.3, 8.2, 8.1
-* ⚠️ **Legacy**: PHP 8.0, PHP 7.4 (security-only)
-* ❌ **Deprecated**: PHP 7.1, 7.2, 7.3 (no longer installed)
-
-Third-party repositories (Remi, Ondrej) may provide older or niche versions; verify compatibility before use.
+**MIT License**
 
 ---
 
-## Quick install
-
-```bash
-sh <(curl -s https://cyberpanel.net/install.sh || wget -O - https://cyberpanel.net/install.sh)
-```
-
-➡️ See `guides/INSTALLATION.md` for platform-specific options and non-interactive installs.
-
----
-
-## Upgrade (recommended)
-
-```bash
-sh <(curl -s https://raw.githubusercontent.com/usmannasir/cyberpanel/stable/preUpgrade.sh || wget -O - https://raw.githubusercontent.com/usmannasir/cyberpanel/stable/preUpgrade.sh)
-```
-
-**Post-upgrade checklist:** verify email, DNS, SSL, and run a smoke test on key sites.
-
----
-
-## Troubleshooting (common)
-
-**Command not found** — install curl/wget/git/python3
-
-```bash
-# Ubuntu/Debian
-sudo apt update && sudo apt install -y curl wget git python3
-
-# RHEL/CentOS/Alma/Rocky
-sudo yum install -y curl wget git python3
-```
-
-**Port 8090 in use** — find and stop conflicting process:
-
-```bash
-sudo ss -tlnp | grep :8090
-sudo kill -9 <PID>
-```
-
-**Logs & verification**
-
-```bash
-systemctl status lscpd
-curl -I http://localhost:8090
-tail -f /usr/local/lscp/logs/error.log
-journalctl -u lscpd -f
-```
-
----
-
-## Recent fixes
-
-* **15.11.2025** — Hardened MySQL password rotation: `mysqlUtilities.changePassword` now auto-resolves the backing MySQL account (user + host) even when `DBUsers` metadata is missing, preventing the historical `[mysqlUtilities.changePassword] can only concatenate str (not "int")` error. Regression tests live under `Test/mysqlUtilities/`, and you should restart `lscpd` after deploying the patch so the helper reloads.
-
----
-
-## Resources
-
-* Official site: [https://cyberpanel.net](https://cyberpanel.net)
-* Docs (KnowledgeBase): [https://cyberpanel.net/KnowledgeBase/](https://cyberpanel.net/KnowledgeBase/)
-* Community forum: [https://community.cyberpanel.net](https://community.cyberpanel.net)
-* GitHub: [https://github.com/usmannasir/cyberpanel](https://github.com/usmannasir/cyberpanel)
-* Guides folder:  [guides](https://github.com/usmannasir/cyberpanel/blob/stable/guides/INDEX.md) (API, INSTALLATION, UPGRADE, TROUBLESHOOTING)
-
----
-
-<div align="center">
-
-💡 *Hosting should be secure, simple, and fast. CyberPanel is built for that.*
-
-</div>
+**Author:** master3395  
+_Last updated: 2026-02-02_  
+_Compatible with CyberPanel 2.5.5-dev and higher_
