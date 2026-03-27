@@ -1,0 +1,511 @@
+{% extends "baseTemplate/index.html" %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}{% trans "Limited phpMyAdmin" %} - {% trans "CyberPanel" %}{% endblock %}
+
+{% block content %}
+<style>
+/* Bootstrap 3 (CyberPanel) has no .d-none — use .lpma-hidden */
+.lpma-hidden{display:none !important}
+.plugin-pricing-badge{display:inline-block;padding:3px 8px;border-radius:4px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-left:6px;vertical-align:middle}
+.plugin-pricing-badge.free{background:#d4edda;color:#155724;border:1px solid #c3e6cb}
+.lpma-actions .btn{margin:2px}
+#lpma-msg.alert{margin-top:12px}
+#lpma-grants-section{margin-top:1.25rem}
+#lpma-grants-heading{font-size:1.1rem;font-weight:600;color:var(--text-heading,#1e293b);margin-bottom:0.5rem;padding-bottom:0.35rem;border-bottom:2px solid var(--accent-color,#5856d6)}
+#lpma-table-wrap{background:var(--bg-secondary,#fff);min-height:8rem;padding:0;overflow-x:auto}
+#lpma-table{width:100%;margin-bottom:0;background:var(--bg-secondary,#fff)}
+#lpma-table thead th{background:#e8e9f5;color:var(--text-primary,#2f3640);border-color:#cdd0e8}
+#lpma-table td{border-color:#dee2e6}
+</style>
+<div class="container-fluid" ng-non-bindable>
+    <div class="row">
+        <div class="col-lg-12">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title"><i class="fas fa-database"></i> {% trans "Limited phpMyAdmin" %}
+                        <span class="plugin-pricing-badge free">{% trans "Free" %}</span>
+                    </h3>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted">{% trans "Create MySQL users that can only access one database via phpMyAdmin (sign in at /phpmyadmin/ with the issued credentials). Disable access without deleting the grant." %}</p>
+                    <p class="text-muted small mb-2">{% trans "Pick a domain to load its grants in the table below. After adding a grant, the list refreshes automatically. If you stay on the same domain, use “Refresh grants” to reload from the server. For enabled grants, use “Copy phpMyAdmin link” to get a one-time URL (24 hours, HTTPS) that signs the user into phpMyAdmin, or “Open phpMyAdmin” to use it immediately in a new tab." %}</p>
+
+                    <div class="form-row align-items-end">
+                        <div class="form-group col-md-6">
+                            <label for="lpma-site">{% trans "Select domain" %}</label>
+                            <select id="lpma-site" class="form-control">
+                                <option value="">{% trans "— Choose website —" %}</option>
+                            </select>
+                        </div>
+                        <div class="form-group col-md-6">
+                            <button type="button" class="btn btn-primary" id="lpma-refresh" title="{% trans "Reload grants for the selected domain from the server" %}">{% trans "Refresh grants" %}</button>
+                            <button type="button" class="btn btn-success" id="lpma-add-open" disabled>{% trans "Add grant" %}</button>
+                        </div>
+                    </div>
+
+                    <div id="lpma-msg" class="alert lpma-hidden" role="alert"></div>
+
+                    <div id="lpma-grants-section">
+                        <h4 id="lpma-grants-heading"><i class="fas fa-list"></i> {% trans "Grants for selected domain" %}</h4>
+                        <p class="text-muted small mb-2">{% trans "Column headers appear below. If this area is empty, scroll down or click “Refresh grants”." %}</p>
+                    <div class="table-responsive mt-2 border rounded" id="lpma-table-wrap">
+                        <table class="table table-bordered table-striped table-hover mb-0" id="lpma-table">
+                            <thead>
+                                <tr>
+                                    <th>{% trans "ID" %}</th>
+                                    <th>{% trans "Subject" %}</th>
+                                    <th>{% trans "Type" %}</th>
+                                    <th>{% trans "Database" %}</th>
+                                    <th>{% trans "MySQL user" %}</th>
+                                    <th>{% trans "Status" %}</th>
+                                    <th>{% trans "Actions" %}</th>
+                                </tr>
+                            </thead>
+                            <tbody id="lpma-tbody">
+                                <tr><td colspan="7" class="text-center text-muted">{% trans "Select a domain" %}</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<script type="application/json" id="lpma-sites-json">{{ sites_json|safe }}</script>
+
+<!-- Modal: add grant -->
+<div class="modal fade" id="lpma-modal-add" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">{% trans "Add grant" %}</h5>
+                <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>{% trans "Subject type" %}</label>
+                    <select id="lpma-subject-type" class="form-control">
+                        <option value="ftp">{% trans "FTP user" %}</option>
+                        <option value="cpuser">{% trans "CyberPanel user" %}</option>
+                    </select>
+                </div>
+                <div class="form-group" id="lpma-wrap-ftp">
+                    <label>{% trans "FTP account" %}</label>
+                    <select id="lpma-ftp" class="form-control"></select>
+                </div>
+                <div class="form-group lpma-hidden" id="lpma-wrap-cp">
+                    <label>{% trans "CyberPanel user" %}</label>
+                    <select id="lpma-cp" class="form-control"></select>
+                </div>
+                <div class="form-group">
+                    <label>{% trans "Database" %}</label>
+                    <select id="lpma-db" class="form-control"></select>
+                </div>
+                <div class="form-group">
+                    <label>{% trans "Notes (optional)" %}</label>
+                    <input type="text" id="lpma-notes" class="form-control" maxlength="500">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">{% trans "Cancel" %}</button>
+                <button type="button" class="btn btn-primary" id="lpma-add-submit">{% trans "Create" %}</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: password result -->
+<div class="modal fade" id="lpma-modal-pw" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">{% trans "MySQL password" %}</h5>
+                <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+            </div>
+            <div class="modal-body">
+                <p>{% trans "Copy now. The password is not stored in plain text." %}</p>
+                <pre class="bg-light p-2" id="lpma-pw-text"></pre>
+                <p><strong>{% trans "MySQL username" %}:</strong> <span id="lpma-pw-user"></span></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary" data-dismiss="modal">{% trans "Done" %}</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: change database -->
+<div class="modal fade" id="lpma-modal-chdb" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">{% trans "Change database" %}</h5>
+                <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="lpma-chdb-grant-id">
+                <div class="form-group">
+                    <label>{% trans "Database" %}</label>
+                    <select id="lpma-chdb-select" class="form-control"></select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">{% trans "Cancel" %}</button>
+                <button type="button" class="btn btn-primary" id="lpma-chdb-save">{% trans "Save" %}</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+(function() {
+    var apiGrantsUrl = "{{ api_grants_url|escapejs }}";
+    var API_BASE = (apiGrantsUrl && apiGrantsUrl.indexOf('api/grants') !== -1)
+        ? apiGrantsUrl.replace(/api\/grants\/?$/, '')
+        : ((window.location.pathname || '').replace(/\/?$/, '') + '/');
+    var CSRF = '{{ csrf_token }}';
+    var sites = [];
+    try {
+        var _sj = document.getElementById('lpma-sites-json');
+        if (_sj && _sj.textContent) sites = JSON.parse(_sj.textContent);
+    } catch (e) {}
+    if (!Array.isArray(sites)) sites = [];
+
+    function showMsg(text, isError) {
+        var el = document.getElementById('lpma-msg');
+        if (!el) return;
+        el.textContent = text || '';
+        el.classList.remove('lpma-hidden', 'alert-success', 'alert-danger');
+        if (!text) {
+            el.classList.add('lpma-hidden');
+            return;
+        }
+        el.classList.add(isError ? 'alert-danger' : 'alert-success');
+    }
+
+    function parseApiResponse(r) {
+        var ct = (r.headers.get('content-type') || '').toLowerCase();
+        if (ct.indexOf('application/json') !== -1) {
+            return r.json();
+        }
+        return r.text().then(function() {
+            var hint = 'HTTP ' + r.status + '. ';
+            if (r.status === 401 || r.status === 403) {
+                hint += '{% trans "Session may have expired — reload the page and sign in again." %}';
+            } else if (r.status >= 500) {
+                hint += '{% trans "Server error. Check CyberPanel logs and plugin migrations." %}';
+            } else {
+                hint += '{% trans "The panel returned a page instead of JSON (wrong URL or proxy)." %}';
+            }
+            throw new Error(hint);
+        });
+    }
+
+    function api(path, opts) {
+        opts = opts || {};
+        opts.credentials = opts.credentials || 'same-origin';
+        opts.headers = opts.headers || {};
+        if (!opts.headers['X-CSRFToken']) opts.headers['X-CSRFToken'] = CSRF;
+        var url = API_BASE + path.replace(/^\//, '');
+        return fetch(url, opts).then(parseApiResponse);
+    }
+
+    var siteSel = document.getElementById('lpma-site');
+    var SS_KEY = 'limitedPhpmyAdmin_siteId';
+    sites.forEach(function(s) {
+        var o = document.createElement('option');
+        o.value = s.id;
+        o.textContent = s.domain;
+        siteSel.appendChild(o);
+    });
+
+    function persistSiteChoice() {
+        try {
+            if (currentSiteId()) sessionStorage.setItem(SS_KEY, currentSiteId());
+        } catch (e) {}
+    }
+
+    function initSiteSelectionAndLoadGrants() {
+        try {
+            var sid = sessionStorage.getItem(SS_KEY);
+            if (sid && siteSel.querySelector('option[value="' + sid + '"]')) {
+                siteSel.value = sid;
+            } else if (sites.length === 1) {
+                siteSel.value = String(sites[0].id);
+            }
+            if (currentSiteId()) {
+                document.getElementById('lpma-add-open').disabled = false;
+                loadGrants();
+            }
+        } catch (e) {}
+    }
+
+    function currentSiteId() {
+        return siteSel.value || '';
+    }
+
+    function renderGrants(rows) {
+        var tb = document.getElementById('lpma-tbody');
+        tb.innerHTML = '';
+        if (!rows || !rows.length) {
+            var tr = document.createElement('tr');
+            tr.innerHTML = '<td colspan="7" class="text-center text-muted">{% trans "No grants" %}</td>';
+            tb.appendChild(tr);
+            return;
+        }
+        rows.forEach(function(g) {
+            var tr = document.createElement('tr');
+            var statusHtml = g.enabled
+                ? '<span class="text-success"><i class="fas fa-check-circle"></i> {% trans "Enabled" %}</span>'
+                : '<span class="text-warning"><i class="fas fa-ban"></i> {% trans "Disabled" %}</span>';
+            var typeLabel = (g.subject_type === 'ftp')
+                ? '{% trans "FTP user" %}'
+                : ((g.subject_type === 'cpuser') ? '{% trans "CyberPanel user" %}' : escapeHtml(g.subject_type));
+            tr.innerHTML =
+                '<td>' + g.id + '</td>' +
+                '<td>' + escapeHtml(g.subject_label) + '</td>' +
+                '<td>' + typeLabel + '</td>' +
+                '<td><code>' + escapeHtml(g.database_name) + '</code></td>' +
+                '<td><code>' + escapeHtml(g.mysql_username) + '</code></td>' +
+                '<td>' + statusHtml + '</td>' +
+                '<td class="lpma-actions"></td>';
+            var tdAct = tr.querySelector('.lpma-actions');
+            tdAct.appendChild(btn('{% trans "Password" %}', 'btn-sm btn-secondary', function() { rotatePw(g.id); }));
+            tdAct.appendChild(btn('{% trans "Database" %}', 'btn-sm btn-info', function() { openChDb(g); }));
+            if (g.enabled) {
+                tdAct.appendChild(btn('{% trans "Copy phpMyAdmin link" %}', 'btn-sm btn-default', function() { copyPmaLoginLink(g.id); }));
+                tdAct.appendChild(btn('{% trans "Open phpMyAdmin" %}', 'btn-sm btn-primary', function() { openPmaLoginLink(g.id); }));
+                tdAct.appendChild(btn('{% trans "Disable" %}', 'btn-sm btn-warning', function() { disableGrant(g.id); }));
+            } else {
+                tdAct.appendChild(btn('{% trans "Enable" %}', 'btn-sm btn-success', function() { enableGrant(g.id); }));
+            }
+            tdAct.appendChild(btn('{% trans "Delete" %}', 'btn-sm btn-danger', function() { deleteGrant(g.id); }));
+            tb.appendChild(tr);
+        });
+    }
+
+    function escapeHtml(s) {
+        if (!s) return '';
+        var d = document.createElement('div');
+        d.textContent = s;
+        return d.innerHTML;
+    }
+
+    function btn(label, cls, fn) {
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'btn ' + cls;
+        b.textContent = label;
+        b.addEventListener('click', fn);
+        return b;
+    }
+
+    function fetchPmaLaunchUrl(gid) {
+        return api('api/grants/pma-launch-link/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+            body: JSON.stringify({ grant_id: gid })
+        });
+    }
+
+    function copyPmaLoginLink(gid) {
+        fetchPmaLaunchUrl(gid).then(function(d) {
+            if (!d.success) { showMsg(d.error || 'Error', true); return; }
+            var u = d.url;
+            function okMsg() {
+                showMsg(d.message || '{% trans "Link copied. Single-use; share only over HTTPS; expires in 24 hours." %}', false);
+            }
+            if (navigator.clipboard && window.isSecureContext && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(u).then(okMsg).catch(function() {
+                    window.prompt('{% trans "Copy this URL:" %}', u);
+                });
+            } else {
+                window.prompt('{% trans "Copy this URL:" %}', u);
+            }
+        }).catch(function(e) { showMsg(e.message || 'Request failed', true); });
+    }
+
+    function openPmaLoginLink(gid) {
+        fetchPmaLaunchUrl(gid).then(function(d) {
+            if (!d.success) { showMsg(d.error || 'Error', true); return; }
+            window.open(d.url, '_blank', 'noopener,noreferrer');
+            showMsg('{% trans "Opening phpMyAdmin in a new tab. The link works once when the page loads." %}', false);
+        }).catch(function(e) { showMsg(e.message || 'Request failed', true); });
+    }
+
+    function loadGrants() {
+        var wid = currentSiteId();
+        if (!wid) {
+            document.getElementById('lpma-tbody').innerHTML = '<tr><td colspan="7" class="text-center text-muted">{% trans "Select a domain" %}</td></tr>';
+            return;
+        }
+        api('api/grants/?website_id=' + encodeURIComponent(wid)).then(function(d) {
+            if (!d.success) { showMsg(d.error || 'Error', true); return; }
+            showMsg('', false);
+            renderGrants(d.grants);
+        }).catch(function(e) { showMsg(e.message || 'Request failed', true); });
+    }
+
+    siteSel.addEventListener('change', function() {
+        persistSiteChoice();
+        document.getElementById('lpma-add-open').disabled = !currentSiteId();
+        loadGrants();
+    });
+    document.getElementById('lpma-refresh').addEventListener('click', loadGrants);
+
+    function loadFtpCpDbForModal() {
+        var wid = currentSiteId();
+        return Promise.all([
+            api('api/ftp/?website_id=' + encodeURIComponent(wid)),
+            api('api/cpusers/?website_id=' + encodeURIComponent(wid)),
+            api('api/databases/?website_id=' + encodeURIComponent(wid))
+        ]).then(function(arr) {
+            var ftp = arr[0], cp = arr[1], db = arr[2];
+            var sf = document.getElementById('lpma-ftp');
+            var sc = document.getElementById('lpma-cp');
+            var sd = document.getElementById('lpma-db');
+            sf.innerHTML = '';
+            sc.innerHTML = '';
+            sd.innerHTML = '';
+            (ftp.ftp_users || []).forEach(function(u) {
+                var o = document.createElement('option');
+                o.value = u.id;
+                o.textContent = u.user;
+                sf.appendChild(o);
+            });
+            (cp.cp_users || []).forEach(function(u) {
+                var o = document.createElement('option');
+                o.value = u.id;
+                o.textContent = u.userName;
+                sc.appendChild(o);
+            });
+            (db.databases || []).forEach(function(d) {
+                var o = document.createElement('option');
+                o.value = d.dbName;
+                o.textContent = d.dbName;
+                sd.appendChild(o);
+            });
+        });
+    }
+
+    document.getElementById('lpma-subject-type').addEventListener('change', function() {
+        var t = document.getElementById('lpma-subject-type').value;
+        document.getElementById('lpma-wrap-ftp').classList.toggle('lpma-hidden', t !== 'ftp');
+        document.getElementById('lpma-wrap-cp').classList.toggle('lpma-hidden', t !== 'cpuser');
+    });
+
+    document.getElementById('lpma-add-open').addEventListener('click', function() {
+        if (!currentSiteId()) return;
+        loadFtpCpDbForModal().then(function() {
+            $('#lpma-modal-add').modal('show');
+        }).catch(function(e) { showMsg(e.message || 'Load failed', true); });
+    });
+
+    document.getElementById('lpma-add-submit').addEventListener('click', function() {
+        var wid = parseInt(currentSiteId(), 10);
+        var st = document.getElementById('lpma-subject-type').value;
+        var body = { website_id: wid, database_name: document.getElementById('lpma-db').value, subject_type: st, notes: document.getElementById('lpma-notes').value };
+        if (st === 'ftp') body.ftp_user_id = parseInt(document.getElementById('lpma-ftp').value, 10);
+        else body.administrator_id = parseInt(document.getElementById('lpma-cp').value, 10);
+        api('api/grants/create/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+            body: JSON.stringify(body)
+        }).then(function(d) {
+            if (!d.success) { showMsg(d.error || 'Error', true); return; }
+            $('#lpma-modal-add').modal('hide');
+            document.getElementById('lpma-pw-text').textContent = d.password || '';
+            document.getElementById('lpma-pw-user').textContent = (d.grant && d.grant.mysql_username) || '';
+            $('#lpma-modal-pw').modal('show');
+            loadGrants();
+        }).catch(function(e) { showMsg(e.message || 'Request failed', true); });
+    });
+
+    function disableGrant(id) {
+        if (!confirm('{% trans "Disable phpMyAdmin access for this grant? (The row is kept.)" %}')) return;
+        api('api/grants/disable/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+            body: JSON.stringify({ grant_id: id })
+        }).then(function(d) {
+            showMsg(d.success ? '{% trans "Disabled." %}' : (d.error || 'Error'), !d.success);
+            loadGrants();
+        }).catch(function(e) { showMsg(e.message || 'Request failed', true); });
+    }
+
+    function enableGrant(id) {
+        api('api/grants/enable/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+            body: JSON.stringify({ grant_id: id })
+        }).then(function(d) {
+            showMsg(d.success ? '{% trans "Enabled." %}' : (d.error || 'Error'), !d.success);
+            loadGrants();
+        }).catch(function(e) { showMsg(e.message || 'Request failed', true); });
+    }
+
+    function deleteGrant(id) {
+        if (!confirm('{% trans "Delete grant and remove MySQL user? This cannot be undone." %}')) return;
+        api('api/grants/delete/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+            body: JSON.stringify({ grant_id: id })
+        }).then(function(d) {
+            showMsg(d.success ? '{% trans "Deleted." %}' : (d.error || 'Error'), !d.success);
+            loadGrants();
+        }).catch(function(e) { showMsg(e.message || 'Request failed', true); });
+    }
+
+    function rotatePw(id) {
+        if (!confirm('{% trans "Generate a new MySQL password?" %}')) return;
+        api('api/grants/rotate-password/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+            body: JSON.stringify({ grant_id: id })
+        }).then(function(d) {
+            if (!d.success) { showMsg(d.error || 'Error', true); return; }
+            document.getElementById('lpma-pw-text').textContent = d.password || '';
+            document.getElementById('lpma-pw-user').textContent = (d.grant && d.grant.mysql_username) || '';
+            $('#lpma-modal-pw').modal('show');
+            loadGrants();
+        }).catch(function(e) { showMsg(e.message || 'Request failed', true); });
+    }
+
+    function openChDb(g) {
+        document.getElementById('lpma-chdb-grant-id').value = g.id;
+        var sel = document.getElementById('lpma-chdb-select');
+        sel.innerHTML = '';
+        api('api/databases/?website_id=' + encodeURIComponent(g.website_id)).then(function(d) {
+            (d.databases || []).forEach(function(row) {
+                var o = document.createElement('option');
+                o.value = row.dbName;
+                o.textContent = row.dbName;
+                if (row.dbName === g.database_name) o.selected = true;
+                sel.appendChild(o);
+            });
+            $('#lpma-modal-chdb').modal('show');
+        });
+    }
+
+    document.getElementById('lpma-chdb-save').addEventListener('click', function() {
+        var gid = parseInt(document.getElementById('lpma-chdb-grant-id').value, 10);
+        var dbn = document.getElementById('lpma-chdb-select').value;
+        api('api/grants/change-database/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+            body: JSON.stringify({ grant_id: gid, database_name: dbn })
+        }).then(function(d) {
+            if (!d.success) { showMsg(d.error || 'Error', true); return; }
+            $('#lpma-modal-chdb').modal('hide');
+            showMsg('{% trans "Database updated." %}', false);
+            loadGrants();
+        }).catch(function(e) { showMsg(e.message || 'Request failed', true); });
+    });
+
+    initSiteSelectionAndLoadGrants();
+})();
+</script>
+{% endblock %}

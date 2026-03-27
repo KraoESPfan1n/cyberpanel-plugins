@@ -101,6 +101,23 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    async function persistActivationInCyberPanel(pluginName, activationKey) {
+        try {
+            if (!activationKey) return;
+            const csrfInput = document.querySelector('input[name=csrfmiddlewaretoken]');
+            const fromCookie = document.cookie.match(/csrftoken=([^;]+)/);
+            await fetch('/plugins/api/store-activation/' + encodeURIComponent(pluginName) + '/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfInput ? csrfInput.value : (fromCookie ? decodeURIComponent(fromCookie[1].trim()) : '')
+                },
+                body: JSON.stringify({ activation_key: activationKey })
+            });
+        } catch (e) {
+            console.warn('Activation persistence hook failed:', e);
+        }
+    }
     const form = document.getElementById('activation-key-form');
     const input = document.getElementById('activation-key-input');
     const btn = document.getElementById('activate-btn');
@@ -118,14 +135,28 @@ document.addEventListener('DOMContentLoaded', function() {
                     headers: { 'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('input[name=csrfmiddlewaretoken]') ? document.querySelector('input[name=csrfmiddlewaretoken]').value : '' },
                     body: JSON.stringify({ activation_key: key })
                 });
-                const data = await res.json();
-                msg.textContent = data.success ? '✅ ' + data.message : '❌ ' + (data.message || 'Invalid key');
+                const raw = await res.text();
+                const ct = (res.headers.get('content-type') || '').toLowerCase();
+                let data;
+                if (ct.indexOf('application/json') !== -1) {
+                    try { data = JSON.parse(raw); } catch (e) { throw new Error('Invalid response from server. Please reload the page.'); }
+                } else {
+                    var s = raw.trim(); if (s.indexOf('<!DOCTYPE') === 0 || s.indexOf('<html') === 0) {
+                        throw new Error('Session expired or server returned a page instead of data. Reload and try again.');
+                    }
+                    throw new Error('Could not activate. Check your network and try again.');
+                }
+                msg.textContent = data.success ? '✅ ' + data.message : '❌ ' + (data.message || 'Invalid activation key for this plugin.');
                 msg.style.display = 'block';
                 msg.style.background = data.success ? '#d4edda' : '#f8d7da';
                 msg.style.color = data.success ? '#155724' : '#721c24';
-                if (data.success) { input.value = ''; setTimeout(function() { location.reload(); }, 2000); }
+                if (data.success) {
+                    await persistActivationInCyberPanel('paypalPremiumPlugin', key);
+                    input.value = '';
+                    setTimeout(function() { location.reload(); }, 2000);
+                }
             } catch (err) {
-                msg.textContent = '❌ ' + err.message;
+                msg.textContent = '❌ ' + (err && err.message ? err.message : 'Activation failed.');
                 msg.style.display = 'block';
                 msg.style.background = '#f8d7da';
                 msg.style.color = '#721c24';

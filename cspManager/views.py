@@ -9,6 +9,7 @@ from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 from django.views.decorators.csrf import csrf_exempt
 from plogical.httpProc import httpProc
+from plogical.plugin_acl import require_manage_plugins_api
 from plogical.mailUtilities import mailUtilities
 from functools import wraps
 import json
@@ -45,8 +46,30 @@ def settings_view(request):
     try:
         mailUtilities.checkHome()
         
-        # Get or create config
-        config = CSPConfig.get_config()
+        # Get or create config (may fail if migrations not run)
+        try:
+            config = CSPConfig.get_config()
+        except Exception as db_err:
+            from django.db.utils import OperationalError, ProgrammingError
+            from django.http import HttpResponse
+            from django.core.management import call_command
+            from plogical.CyberCPLogFileWriter import CyberCPLogFileWriter as logging
+            logging.writeToFile(f"CSP Manager get_config error: {db_err}")
+            if isinstance(db_err, (OperationalError, ProgrammingError)):
+                try:
+                    call_command('migrate', 'cspManager', verbosity=0, interactive=False)
+                    config = CSPConfig.get_config()
+                except Exception as migrate_err:
+                    logging.writeToFile(f"CSP Manager migrate error: {migrate_err}")
+                    return HttpResponse(
+                        '<div style="padding:20px;font-family:sans-serif;">'
+                        '<h2>CSP Manager</h2><p>The database table is missing. Run migrations:</p>'
+                        '<pre>cd /usr/local/CyberCP && python3 manage.py migrate cspManager</pre>'
+                        '<p>Error: %s</p></div>' % str(db_err),
+                        status=503
+                    )
+            else:
+                raise
         
         if request.method == 'POST':
             form = CSPConfigForm(request.POST, instance=config)
@@ -79,7 +102,7 @@ def settings_view(request):
                 'config': config,
             }
         
-        proc = httpProc(request, 'cspManager/settings.html', context, 'admin')
+        proc = httpProc(request, 'cspManager/settings.html', context, 'managePlugins')
         return proc.render()
         
     except Exception as e:
@@ -93,6 +116,7 @@ def settings_view(request):
 
 
 @cyberpanel_login_required
+@require_manage_plugins_api
 @csrf_exempt
 @require_http_methods(["POST"])
 def toggle_plugin_csp(request):

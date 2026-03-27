@@ -9,6 +9,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from plogical.mailUtilities import mailUtilities
 from plogical.httpProc import httpProc
+from plogical.plugin_acl import require_manage_plugins_api
 from plogical.CyberCPLogFileWriter import CyberCPLogFileWriter as logging
 from plogical.acl import ACLManager
 from functools import wraps
@@ -49,20 +50,44 @@ def main_view(request):
         # Get all user domains
         domains = get_user_domains(userID, currentACL)
         
-        # Get GTM settings for all domains
+        # Get GTM settings for all domains (with defensive migrate if table missing)
         gtm_settings = {}
-        for domain_info in domains:
-            domain = domain_info['domain']
-            try:
-                gtm_setting = GTMSettings.objects.get(domain=domain)
-                gtm_settings[domain] = {
-                    'container_id': gtm_setting.gtm_container_id,
-                    'enabled': gtm_setting.enabled,
-                    'created_at': gtm_setting.created_at.strftime('%Y-%m-%d %H:%M:%S'),
-                    'updated_at': gtm_setting.updated_at.strftime('%Y-%m-%d %H:%M:%S')
-                }
-            except GTMSettings.DoesNotExist:
-                gtm_settings[domain] = None
+        try:
+            for domain_info in domains:
+                domain = domain_info['domain']
+                try:
+                    gtm_setting = GTMSettings.objects.get(domain=domain)
+                    gtm_settings[domain] = {
+                        'container_id': gtm_setting.gtm_container_id,
+                        'enabled': gtm_setting.enabled,
+                        'created_at': gtm_setting.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+                        'updated_at': gtm_setting.updated_at.strftime('%Y-%m-%d %H:%M:%S')
+                    }
+                except GTMSettings.DoesNotExist:
+                    gtm_settings[domain] = None
+        except Exception as db_err:
+            from django.db.utils import OperationalError, ProgrammingError
+            if isinstance(db_err, (OperationalError, ProgrammingError)):
+                try:
+                    from django.core.management import call_command
+                    call_command('migrate', 'googleTagManager', verbosity=0, interactive=False)
+                    for domain_info in domains:
+                        domain = domain_info['domain']
+                        try:
+                            gtm_setting = GTMSettings.objects.get(domain=domain)
+                            gtm_settings[domain] = {
+                                'container_id': gtm_setting.gtm_container_id,
+                                'enabled': gtm_setting.enabled,
+                                'created_at': gtm_setting.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+                                'updated_at': gtm_setting.updated_at.strftime('%Y-%m-%d %H:%M:%S')
+                            }
+                        except GTMSettings.DoesNotExist:
+                            gtm_settings[domain] = None
+                except Exception as migrate_err:
+                    logging.writeToFile(f"GTM main_view migrate error: {migrate_err}")
+                    raise db_err
+            else:
+                raise
         
         # Statistics
         total_domains = len(domains)
@@ -80,7 +105,7 @@ def main_view(request):
             'is_admin': currentACL['admin'] == 1
         }
         
-        proc = httpProc(request, 'googleTagManager/index.html', context, 'admin')
+        proc = httpProc(request, 'googleTagManager/index.html', context, 'managePlugins')
         return proc.render()
         
     except Exception as e:
@@ -95,7 +120,7 @@ def main_view(request):
             'configured_domains': 0,
             'enabled_domains': 0
         }
-        proc = httpProc(request, 'googleTagManager/index.html', context, 'admin')
+        proc = httpProc(request, 'googleTagManager/index.html', context, 'managePlugins')
         return proc.render()
 
 
@@ -113,19 +138,42 @@ def settings_view(request):
         # Get all user domains
         domains = get_user_domains(userID, currentACL)
         
-        # Get existing GTM settings
+        # Get existing GTM settings (with defensive migrate if table missing)
         gtm_settings = {}
-        for domain_info in domains:
-            domain = domain_info['domain']
-            try:
-                gtm_setting = GTMSettings.objects.get(domain=domain)
-                gtm_settings[domain] = {
-                    'container_id': gtm_setting.gtm_container_id,
-                    'enabled': gtm_setting.enabled,
-                    'id': gtm_setting.id
-                }
-            except GTMSettings.DoesNotExist:
-                gtm_settings[domain] = None
+        try:
+            for domain_info in domains:
+                domain = domain_info['domain']
+                try:
+                    gtm_setting = GTMSettings.objects.get(domain=domain)
+                    gtm_settings[domain] = {
+                        'container_id': gtm_setting.gtm_container_id,
+                        'enabled': gtm_setting.enabled,
+                        'id': gtm_setting.id
+                    }
+                except GTMSettings.DoesNotExist:
+                    gtm_settings[domain] = None
+        except Exception as db_err:
+            from django.db.utils import OperationalError, ProgrammingError
+            if isinstance(db_err, (OperationalError, ProgrammingError)):
+                try:
+                    from django.core.management import call_command
+                    call_command('migrate', 'googleTagManager', verbosity=0, interactive=False)
+                    for domain_info in domains:
+                        domain = domain_info['domain']
+                        try:
+                            gtm_setting = GTMSettings.objects.get(domain=domain)
+                            gtm_settings[domain] = {
+                                'container_id': gtm_setting.gtm_container_id,
+                                'enabled': gtm_setting.enabled,
+                                'id': gtm_setting.id
+                            }
+                        except GTMSettings.DoesNotExist:
+                            gtm_settings[domain] = None
+                except Exception as migrate_err:
+                    logging.writeToFile(f"GTM settings_view migrate error: {migrate_err}")
+                    raise db_err
+            else:
+                raise
         
         context = {
             'plugin_name': 'Google Tag Manager',
@@ -135,7 +183,7 @@ def settings_view(request):
             'is_admin': currentACL['admin'] == 1
         }
         
-        proc = httpProc(request, 'googleTagManager/settings.html', context, 'admin')
+        proc = httpProc(request, 'googleTagManager/settings.html', context, 'managePlugins')
         return proc.render()
         
     except Exception as e:
@@ -147,11 +195,12 @@ def settings_view(request):
             'domains': [],
             'gtm_settings': {}
         }
-        proc = httpProc(request, 'googleTagManager/settings.html', context, 'admin')
+        proc = httpProc(request, 'googleTagManager/settings.html', context, 'managePlugins')
         return proc.render()
 
 
 @cyberpanel_login_required
+@require_manage_plugins_api
 @csrf_exempt
 @require_http_methods(["GET"])
 def api_get_domains(request):
@@ -192,6 +241,7 @@ def api_get_domains(request):
 
 
 @cyberpanel_login_required
+@require_manage_plugins_api
 @csrf_exempt
 @require_http_methods(["POST"])
 def api_save_gtm(request):
@@ -264,6 +314,7 @@ def api_save_gtm(request):
 
 
 @cyberpanel_login_required
+@require_manage_plugins_api
 @csrf_exempt
 @require_http_methods(["POST"])
 def api_delete_gtm(request):
@@ -319,6 +370,7 @@ def api_delete_gtm(request):
 
 
 @cyberpanel_login_required
+@require_manage_plugins_api
 @csrf_exempt
 @require_http_methods(["GET"])
 def api_get_gtm_code(request, domain):
@@ -368,6 +420,7 @@ def api_get_gtm_code(request, domain):
 
 
 @cyberpanel_login_required
+@require_manage_plugins_api
 @csrf_exempt
 @require_http_methods(["POST"])
 def api_toggle_gtm(request):
